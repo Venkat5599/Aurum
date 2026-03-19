@@ -1,4 +1,4 @@
-import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from '@solana/web3.js'
+import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from '@solana/web3.js'
 import { AnchorWallet } from '@solana/wallet-adapter-react'
 import { AnchorProvider, Program, BN } from '@coral-xyz/anchor'
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } from '@solana/spl-token'
@@ -26,20 +26,9 @@ export async function mintAuusd(
   try {
     toast.loading('Preparing mint transaction...')
 
-    // Check if vault program has mint method
     const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
     const program = new Program(vaultIdl as any, PROGRAM_IDS.vault, provider)
 
-    // Check if the method exists in the IDL
-    if (!program.methods.mintAuusd) {
-      toast.dismiss()
-      toast.info('Mint functionality coming soon', {
-        description: 'The vault program is deployed but the mint instruction needs to be implemented. This is a demo environment.'
-      })
-      return { success: false, signature: null }
-    }
-
-    // Rest of the mint logic...
     const [vaultPDA] = deriveVaultPDA(VAULT_AUTHORITY)
     const [userStatePDA] = deriveUserStatePDA(wallet.publicKey)
 
@@ -54,6 +43,8 @@ export async function mintAuusd(
     const vaultCollateralAta = await getAssociatedTokenAddress(collateralMint, vaultPDA, true)
 
     const instructions = []
+    
+    // Create auUSD ATA if needed
     try {
       await getAccount(connection, userAuusdAta)
     } catch {
@@ -68,7 +59,7 @@ export async function mintAuusd(
     }
 
     const collateralAmountLamports = new BN(collateralAmount * 1_000_000)
-    const auusdAmount = new BN(collateralAmount * 2650 * 1_000_000 / 1.1)
+    const auusdAmount = new BN(Math.floor(collateralAmount * 2650 * 1_000_000 / 1.1))
 
     const mintIx = await program.methods
       .mintAuusd(auusdAmount, collateralAmountLamports)
@@ -86,41 +77,38 @@ export async function mintAuusd(
 
     instructions.push(mintIx)
 
-    const tx = await provider.sendAndConfirm(
-      await provider.connection.getLatestBlockhash().then(({ blockhash }) => {
-        const transaction = new (require('@solana/web3.js').Transaction)()
-        transaction.recentBlockhash = blockhash
-        transaction.feePayer = wallet.publicKey
-        instructions.forEach(ix => transaction.add(ix))
-        return transaction
-      })
-    )
+    const { blockhash } = await connection.getLatestBlockhash()
+    const transaction = new Transaction()
+    transaction.recentBlockhash = blockhash
+    transaction.feePayer = wallet.publicKey
+    instructions.forEach(ix => transaction.add(ix))
+
+    const signed = await wallet.signTransaction(transaction)
+    const signature = await connection.sendRawTransaction(signed.serialize())
+    await connection.confirmTransaction(signature)
 
     toast.dismiss()
     toast.success('Successfully minted auUSD!', {
       description: `Deposited ${collateralAmount} ${collateralType.toUpperCase()}`,
       action: {
         label: 'View on Explorer',
-        onClick: () => window.open(`https://explorer.solana.com/tx/${tx}?cluster=${CLUSTER}`, '_blank')
+        onClick: () => window.open(`https://explorer.solana.com/tx/${signature}?cluster=${CLUSTER}`, '_blank')
       }
     })
 
-    return { success: true, signature: tx }
+    return { success: true, signature }
   } catch (error: any) {
     console.error('Mint error:', error)
     toast.dismiss()
     
-    // Better error messages
-    let errorMessage = 'Transaction failed'
-    if (error.message?.includes('size')) {
-      errorMessage = 'Vault program needs full implementation. This is a demo environment.'
-    } else if (error.message?.includes('insufficient')) {
+    let errorMessage = error.message || 'Transaction failed'
+    if (error.message?.includes('insufficient')) {
       errorMessage = 'Insufficient collateral balance'
-    } else if (error.message) {
-      errorMessage = error.message
+    } else if (error.message?.includes('0x1')) {
+      errorMessage = 'Insufficient funds for transaction'
     }
     
-    toast.error('Mint not available yet', {
+    toast.error('Mint failed', {
       description: errorMessage
     })
     return { success: false, signature: null }
@@ -145,15 +133,6 @@ export async function redeemAuusd(
 
     const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
     const program = new Program(vaultIdl as any, PROGRAM_IDS.vault, provider)
-
-    // Check if the method exists in the IDL
-    if (!program.methods.redeemAuusd) {
-      toast.dismiss()
-      toast.info('Redeem functionality coming soon', {
-        description: 'The vault program is deployed but the redeem instruction needs to be implemented. This is a demo environment.'
-      })
-      return { success: false, signature: null }
-    }
 
     const [vaultPDA] = deriveVaultPDA(VAULT_AUTHORITY)
 
@@ -182,41 +161,38 @@ export async function redeemAuusd(
       })
       .instruction()
 
-    const tx = await provider.sendAndConfirm(
-      await provider.connection.getLatestBlockhash().then(({ blockhash }) => {
-        const transaction = new (require('@solana/web3.js').Transaction)()
-        transaction.recentBlockhash = blockhash
-        transaction.feePayer = wallet.publicKey
-        transaction.add(redeemIx)
-        return transaction
-      })
-    )
+    const { blockhash } = await connection.getLatestBlockhash()
+    const transaction = new Transaction()
+    transaction.recentBlockhash = blockhash
+    transaction.feePayer = wallet.publicKey
+    transaction.add(redeemIx)
+
+    const signed = await wallet.signTransaction(transaction)
+    const signature = await connection.sendRawTransaction(signed.serialize())
+    await connection.confirmTransaction(signature)
 
     toast.dismiss()
     toast.success('Successfully redeemed collateral!', {
       description: `Burned ${auusdAmount} auUSD`,
       action: {
         label: 'View on Explorer',
-        onClick: () => window.open(`https://explorer.solana.com/tx/${tx}?cluster=${CLUSTER}`, '_blank')
+        onClick: () => window.open(`https://explorer.solana.com/tx/${signature}?cluster=${CLUSTER}`, '_blank')
       }
     })
 
-    return { success: true, signature: tx }
+    return { success: true, signature }
   } catch (error: any) {
     console.error('Redeem error:', error)
     toast.dismiss()
     
-    // Better error messages
-    let errorMessage = 'Transaction failed'
-    if (error.message?.includes('size')) {
-      errorMessage = 'Vault program needs full implementation. This is a demo environment.'
-    } else if (error.message?.includes('insufficient')) {
+    let errorMessage = error.message || 'Transaction failed'
+    if (error.message?.includes('insufficient')) {
       errorMessage = 'Insufficient auUSD balance'
-    } else if (error.message) {
-      errorMessage = error.message
+    } else if (error.message?.includes('0x1')) {
+      errorMessage = 'Insufficient funds for transaction'
     }
     
-    toast.error('Redeem not available yet', {
+    toast.error('Redeem failed', {
       description: errorMessage
     })
     return { success: false, signature: null }

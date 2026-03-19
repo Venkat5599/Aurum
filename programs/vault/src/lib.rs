@@ -26,6 +26,19 @@ pub mod vault {
         Ok(())
     }
 
+    /// Initialize user state (required before minting)
+    pub fn initialize_user(ctx: Context<InitializeUser>) -> Result<()> {
+        let user_state = &mut ctx.accounts.user_state;
+        user_state.wallet = ctx.accounts.user.key();
+        user_state.kyc_verified = true; // Auto-verify for demo
+        user_state.is_frozen = false;
+        user_state.total_minted = 0;
+        user_state.total_redeemed = 0;
+        
+        msg!("User state initialized for {}", ctx.accounts.user.key());
+        Ok(())
+    }
+
     /// Mint auUSD by depositing tokenized commodities
     pub fn mint_auusd(
         ctx: Context<MintAuUSD>,
@@ -208,6 +221,23 @@ pub struct Initialize<'info> {
     
     /// CHECK: Compliance program account
     pub compliance: UncheckedAccount<'info>,
+    
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeUser<'info> {
+    #[account(
+        init,
+        payer = user,
+        space = 8 + UserState::INIT_SPACE,
+        seeds = [b"user_state", user.key().as_ref()],
+        bump
+    )]
+    pub user_state: Account<'info, UserState>,
+    
+    #[account(mut)]
+    pub user: Signer<'info>,
     
     pub system_program: Program<'info, System>,
 }

@@ -248,17 +248,188 @@ function VaultSection({ oracle, wallet, connection }: any) {
         
         <div className="p-8">
           {activeTab === 'mint' ? (
-            <div className="max-w-2xl mx-auto">
-              <p className="text-muted-foreground mb-6">Deposit tokenized gold or silver to mint auUSD</p>
-              {/* Mint form would go here */}
-            </div>
+            <MintTab oracle={oracle} connection={connection} wallet={wallet} />
           ) : (
-            <div className="max-w-2xl mx-auto">
-              <p className="text-muted-foreground mb-6">Burn auUSD to redeem your collateral</p>
-              {/* Redeem form would go here */}
-            </div>
+            <RedeemTab oracle={oracle} connection={connection} wallet={wallet} />
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function MintTab({ oracle, connection, wallet }: any) {
+  const [amount, setAmount] = useState('')
+  const [collateralType, setCollateralType] = useState<'gold' | 'silver'>('gold')
+  const [isLoading, setIsLoading] = useState(false)
+  const amountNum = parseFloat(amount) || 0
+
+  const price = collateralType === 'gold' ? (oracle?.goldPrice || 0) : (oracle?.silverPrice || 0)
+  const collateralRatio = 1.1
+  const auusdReceived = price > 0 ? (amountNum * price) / collateralRatio : 0
+
+  const handleMint = async () => {
+    if (!wallet.publicKey || !wallet.signTransaction) return
+    if (amountNum <= 0) return
+
+    setIsLoading(true)
+    try {
+      await mintAuusd(connection, wallet as any, amountNum, collateralType)
+      setAmount('')
+    } catch (error) {
+      console.error('Mint error:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6 animate-fadeIn max-w-2xl mx-auto">
+      <div>
+        <h3 className="text-xl font-medium text-foreground mb-2">Mint auUSD</h3>
+        <p className="text-muted-foreground">Deposit tokenized gold or silver to mint auUSD</p>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">Collateral Type</label>
+          <select
+            value={collateralType}
+            onChange={(e) => setCollateralType(e.target.value as 'gold' | 'silver')}
+            className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+          >
+            <option value="gold">Tokenized Gold (XAU)</option>
+            <option value="silver">Tokenized Silver (XAG)</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">Amount</label>
+          <div className="relative">
+            <input
+              type="number"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+              {collateralType === 'gold' ? 'XAU' : 'XAG'}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-muted/50 border border-border/40 rounded-lg p-4 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Oracle Price</span>
+            <span className="text-foreground font-medium">${price.toFixed(2)}/oz</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Collateral Ratio</span>
+            <span className="text-foreground font-medium">110%</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">You will receive</span>
+            <span className="text-foreground font-medium">~{auusdReceived.toFixed(2)} auUSD</span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleMint}
+          disabled={isLoading || amountNum <= 0 || !price}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-3 rounded-lg transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Minting...' : 'Mint auUSD'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function RedeemTab({ oracle, connection, wallet }: any) {
+  const [amount, setAmount] = useState('')
+  const [collateralType, setCollateralType] = useState<'gold' | 'silver'>('gold')
+  const [isLoading, setIsLoading] = useState(false)
+  const amountNum = parseFloat(amount) || 0
+
+  const price = collateralType === 'gold' ? (oracle?.goldPrice || 0) : (oracle?.silverPrice || 0)
+  const redemptionFee = 0.005
+  const amountAfterFee = amountNum * (1 - redemptionFee)
+  const collateralReceived = price > 0 ? amountAfterFee / price : 0
+
+  const handleRedeem = async () => {
+    if (!wallet.publicKey || !wallet.signTransaction) return
+    if (amountNum <= 0) return
+
+    setIsLoading(true)
+    try {
+      await redeemAuusd(connection, wallet as any, amountNum, collateralType)
+      setAmount('')
+    } catch (error) {
+      console.error('Redeem error:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6 animate-fadeIn max-w-2xl mx-auto">
+      <div>
+        <h3 className="text-xl font-medium text-foreground mb-2">Redeem Collateral</h3>
+        <p className="text-muted-foreground">Burn auUSD to redeem your tokenized commodities</p>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">auUSD Amount</label>
+          <div className="relative">
+            <input
+              type="number"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">auUSD</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">Receive As</label>
+          <select
+            value={collateralType}
+            onChange={(e) => setCollateralType(e.target.value as 'gold' | 'silver')}
+            className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+          >
+            <option value="gold">Tokenized Gold (XAU)</option>
+            <option value="silver">Tokenized Silver (XAG)</option>
+          </select>
+        </div>
+
+        <div className="bg-muted/50 border border-border/40 rounded-lg p-4 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Oracle Price</span>
+            <span className="text-foreground font-medium">${price.toFixed(2)}/oz</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">You will receive</span>
+            <span className="text-foreground font-medium">
+              ~{collateralReceived.toFixed(4)} {collateralType === 'gold' ? 'XAU' : 'XAG'}
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Redemption Fee</span>
+            <span className="text-foreground font-medium">0.5%</span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleRedeem}
+          disabled={isLoading || amountNum <= 0 || !price}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-3 rounded-lg transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Redeeming...' : 'Redeem Collateral'}
+        </button>
       </div>
     </div>
   )

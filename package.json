@@ -12,6 +12,8 @@
     "update-prices": "ts-node scripts/update-oracle-prices.ts",
     "update-prices-pyth": "ts-node scripts/pyth-price-updater.ts",
     "watch-prices": "ts-node scripts/pyth-price-updater.ts --watch",
+    "oracle:update": "node scripts/update-oracle-once.js",
+    "oracle:watch": "node scripts/oracle-auto-updater.js",
     "demo": "ts-node scripts/demo-flow.ts",
     "verify": "node scripts/verify-integration.js",
     "setup": "yarn install && cd frontend && yarn install",
@@ -31,6 +33,7 @@
     "@pythnetwork/client": "^2.22.1",
     "@solana/spl-token": "^0.4.0",
     "@solana/web3.js": "^1.95.0",
+    "dotenv": "^17.3.1",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
