@@ -64,3 +64,5 @@ temp/
 *.pem
 *.key
 secrets/
+private-key-phantom.txt
+private-key-*.txt
