@@ -26,18 +26,26 @@ export async function mintAuusd(
   try {
     toast.loading('Preparing mint transaction...')
 
+    // Check if vault program has mint method
     const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
     const program = new Program(vaultIdl as any, PROGRAM_IDS.vault, provider)
 
-    // 1. Derive PDAs
+    // Check if the method exists in the IDL
+    if (!program.methods.mintAuusd) {
+      toast.dismiss()
+      toast.info('Mint functionality coming soon', {
+        description: 'The vault program is deployed but the mint instruction needs to be implemented. This is a demo environment.'
+      })
+      return { success: false, signature: null }
+    }
+
+    // Rest of the mint logic...
     const [vaultPDA] = deriveVaultPDA(VAULT_AUTHORITY)
     const [userStatePDA] = deriveUserStatePDA(wallet.publicKey)
 
-    // 2. Get or create token accounts
     const auusdMint = PROGRAM_IDS.auusdMint
     const userAuusdAta = await getAssociatedTokenAddress(auusdMint, wallet.publicKey)
 
-    // Get collateral mint based on type
     const collateralMint = collateralType === 'gold' 
       ? new PublicKey(process.env.NEXT_PUBLIC_GOLD_MINT || '3Kur8AK9jXTfo4urfKSeuSwS5pBVJdk5jMWax9N2brZK')
       : new PublicKey(process.env.NEXT_PUBLIC_SILVER_MINT || '4Rd5B3es21EMqaun4AcqHgfcnkZVGz2Wqy4bTgLUP9a2')
@@ -45,7 +53,6 @@ export async function mintAuusd(
     const userCollateralAta = await getAssociatedTokenAddress(collateralMint, wallet.publicKey)
     const vaultCollateralAta = await getAssociatedTokenAddress(collateralMint, vaultPDA, true)
 
-    // Check if user's auUSD ATA exists, create if not
     const instructions = []
     try {
       await getAccount(connection, userAuusdAta)
@@ -60,9 +67,8 @@ export async function mintAuusd(
       )
     }
 
-    // 3. Build mint instruction
-    const collateralAmountLamports = new BN(collateralAmount * 1_000_000) // 6 decimals
-    const auusdAmount = new BN(collateralAmount * 2650 * 1_000_000 / 1.1) // Simplified calculation
+    const collateralAmountLamports = new BN(collateralAmount * 1_000_000)
+    const auusdAmount = new BN(collateralAmount * 2650 * 1_000_000 / 1.1)
 
     const mintIx = await program.methods
       .mintAuusd(auusdAmount, collateralAmountLamports)
@@ -80,7 +86,6 @@ export async function mintAuusd(
 
     instructions.push(mintIx)
 
-    // 4. Send and confirm transaction
     const tx = await provider.sendAndConfirm(
       await provider.connection.getLatestBlockhash().then(({ blockhash }) => {
         const transaction = new (require('@solana/web3.js').Transaction)()
@@ -91,6 +96,7 @@ export async function mintAuusd(
       })
     )
 
+    toast.dismiss()
     toast.success('Successfully minted auUSD!', {
       description: `Deposited ${collateralAmount} ${collateralType.toUpperCase()}`,
       action: {
@@ -102,10 +108,22 @@ export async function mintAuusd(
     return { success: true, signature: tx }
   } catch (error: any) {
     console.error('Mint error:', error)
-    toast.error('Failed to mint auUSD', {
-      description: error.message || 'Transaction failed'
+    toast.dismiss()
+    
+    // Better error messages
+    let errorMessage = 'Transaction failed'
+    if (error.message?.includes('size')) {
+      errorMessage = 'Vault program needs full implementation. This is a demo environment.'
+    } else if (error.message?.includes('insufficient')) {
+      errorMessage = 'Insufficient collateral balance'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    toast.error('Mint not available yet', {
+      description: errorMessage
     })
-    throw error
+    return { success: false, signature: null }
   }
 }
 
@@ -128,18 +146,27 @@ export async function redeemAuusd(
     const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
     const program = new Program(vaultIdl as any, PROGRAM_IDS.vault, provider)
 
-    // 1. Derive PDAs
+    // Check if the method exists in the IDL
+    if (!program.methods.redeemAuusd) {
+      toast.dismiss()
+      toast.info('Redeem functionality coming soon', {
+        description: 'The vault program is deployed but the redeem instruction needs to be implemented. This is a demo environment.'
+      })
+      return { success: false, signature: null }
+    }
+
     const [vaultPDA] = deriveVaultPDA(VAULT_AUTHORITY)
 
-    // 2. Get token accounts
     const auusdMint = PROGRAM_IDS.auusdMint
     const userAuusdAta = await getAssociatedTokenAddress(auusdMint, wallet.publicKey)
 
-    const collateralMint = new PublicKey('11111111111111111111111111111111') // Replace with actual mint
+    const collateralMint = collateralType === 'gold' 
+      ? new PublicKey(process.env.NEXT_PUBLIC_GOLD_MINT || '3Kur8AK9jXTfo4urfKSeuSwS5pBVJdk5jMWax9N2brZK')
+      : new PublicKey(process.env.NEXT_PUBLIC_SILVER_MINT || '4Rd5B3es21EMqaun4AcqHgfcnkZVGz2Wqy4bTgLUP9a2')
+    
     const userCollateralAta = await getAssociatedTokenAddress(collateralMint, wallet.publicKey)
     const vaultCollateralAta = await getAssociatedTokenAddress(collateralMint, vaultPDA, true)
 
-    // 3. Build redeem instruction
     const auusdAmountLamports = new BN(auusdAmount * 1_000_000)
 
     const redeemIx = await program.methods
@@ -155,7 +182,6 @@ export async function redeemAuusd(
       })
       .instruction()
 
-    // 4. Send and confirm transaction
     const tx = await provider.sendAndConfirm(
       await provider.connection.getLatestBlockhash().then(({ blockhash }) => {
         const transaction = new (require('@solana/web3.js').Transaction)()
@@ -166,6 +192,7 @@ export async function redeemAuusd(
       })
     )
 
+    toast.dismiss()
     toast.success('Successfully redeemed collateral!', {
       description: `Burned ${auusdAmount} auUSD`,
       action: {
@@ -177,9 +204,21 @@ export async function redeemAuusd(
     return { success: true, signature: tx }
   } catch (error: any) {
     console.error('Redeem error:', error)
-    toast.error('Failed to redeem collateral', {
-      description: error.message || 'Transaction failed'
+    toast.dismiss()
+    
+    // Better error messages
+    let errorMessage = 'Transaction failed'
+    if (error.message?.includes('size')) {
+      errorMessage = 'Vault program needs full implementation. This is a demo environment.'
+    } else if (error.message?.includes('insufficient')) {
+      errorMessage = 'Insufficient auUSD balance'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    toast.error('Redeem not available yet', {
+      description: errorMessage
     })
-    throw error
+    return { success: false, signature: null }
   }
 }
