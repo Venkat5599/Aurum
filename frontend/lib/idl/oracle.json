@@ -1,0 +1,272 @@
+{
+  "address": "FC952j5bGogrdLzuxxtAEiHRaWhC2v984nRHHvFrcsNp",
+  "metadata": {
+    "name": "oracle",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Aurum oracle program for SIX precious metals pricing"
+  },
+  "instructions": [
+    {
+      "name": "get_collateral_value",
+      "docs": [
+        "Get current collateral value"
+      ],
+      "discriminator": [
+        32,
+        38,
+        217,
+        11,
+        244,
+        188,
+        96,
+        140
+      ],
+      "accounts": [
+        {
+          "name": "oracle_data"
+        }
+      ],
+      "args": [
+        {
+          "name": "gold_amount",
+          "type": "u64"
+        },
+        {
+          "name": "silver_amount",
+          "type": "u64"
+        }
+      ],
+      "returns": "u64"
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Initialize oracle feed"
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "oracle_data",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_prices",
+      "docs": [
+        "Update prices (called by authorized SIX data pusher)"
+      ],
+      "discriminator": [
+        62,
+        161,
+        234,
+        136,
+        106,
+        26,
+        18,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "oracle_data",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "oracle_data.authority",
+                "account": "OracleData"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "gold_price",
+          "type": "u64"
+        },
+        {
+          "name": "silver_price",
+          "type": "u64"
+        },
+        {
+          "name": "eur_usd_rate",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "OracleData",
+      "discriminator": [
+        26,
+        131,
+        25,
+        110,
+        6,
+        141,
+        10,
+        37
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "PriceUpdateEvent",
+      "discriminator": [
+        176,
+        152,
+        211,
+        252,
+        92,
+        105,
+        194,
+        103
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidPrice",
+      "msg": "Invalid price"
+    },
+    {
+      "code": 6002,
+      "name": "StaleData",
+      "msg": "Stale data"
+    },
+    {
+      "code": 6003,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "OracleData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "gold_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "silver_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "eur_usd_rate",
+            "type": "u64"
+          },
+          {
+            "name": "last_update",
+            "type": "i64"
+          },
+          {
+            "name": "update_count",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceUpdateEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "gold_price",
+            "type": "u64"
+          },
+          {
+            "name": "silver_price",
+            "type": "u64"
+          },
+          {
+            "name": "eur_usd_rate",
+            "type": "u64"
+          },
+          {
+            "name": "volatility",
+            "type": "u16"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}

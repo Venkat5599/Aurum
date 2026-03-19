@@ -1,0 +1,22 @@
+[toolchain]
+anchor_version = "0.32.1"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+compliance = "zcqKh45k7YMcD17VPFdf4kg7K26nkNFojdzQdL8gahz"
+oracle = "FC952j5bGogrdLzuxxtAEiHRaWhC2v984nRHHvFrcsNp"
+vault = "CNThC8D16VAGh3QtDNf3qfr9REsx9AvGfSQ6pEyiv2Yn"
+yield_optimizer = "4UP1g7N9ZFvQPvbiSTtXHjPYqFcR32g8BFgHeum4esCS"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

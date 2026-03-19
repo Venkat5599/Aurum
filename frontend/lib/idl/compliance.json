@@ -1,0 +1,518 @@
+{
+  "address": "zcqKh45k7YMcD17VPFdf4kg7K26nkNFojdzQdL8gahz",
+  "metadata": {
+    "name": "compliance",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Aurum compliance program for KYC/KYT/AML/Travel Rule"
+  },
+  "instructions": [
+    {
+      "name": "freeze_address",
+      "docs": [
+        "Freeze address (AML enforcement)"
+      ],
+      "discriminator": [
+        150,
+        43,
+        141,
+        216,
+        216,
+        42,
+        167,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "user_state",
+          "writable": true
+        },
+        {
+          "name": "compliance_authority"
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "generate_travel_rule_payload",
+      "docs": [
+        "Travel Rule payload generation (called by transfer hook)"
+      ],
+      "discriminator": [
+        158,
+        144,
+        108,
+        196,
+        222,
+        19,
+        230,
+        79
+      ],
+      "accounts": [
+        {
+          "name": "sender_state"
+        },
+        {
+          "name": "recipient_state"
+        },
+        {
+          "name": "sender",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_user",
+      "docs": [
+        "Initialize user compliance state"
+      ],
+      "discriminator": [
+        111,
+        17,
+        185,
+        250,
+        60,
+        122,
+        38,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "kyt_check",
+      "docs": [
+        "KYT check before transaction"
+      ],
+      "discriminator": [
+        170,
+        124,
+        155,
+        78,
+        125,
+        191,
+        11,
+        143
+      ],
+      "accounts": [
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "recipient",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "verify_kyc",
+      "docs": [
+        "Verify KYC with zero-knowledge proof"
+      ],
+      "discriminator": [
+        102,
+        127,
+        254,
+        101,
+        12,
+        246,
+        86,
+        71
+      ],
+      "accounts": [
+        {
+          "name": "user_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "proof_data",
+          "type": "bytes"
+        },
+        {
+          "name": "expiry",
+          "type": "i64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "ComplianceAuthority",
+      "discriminator": [
+        72,
+        191,
+        150,
+        220,
+        100,
+        103,
+        14,
+        3
+      ]
+    },
+    {
+      "name": "UserState",
+      "discriminator": [
+        72,
+        177,
+        85,
+        249,
+        76,
+        167,
+        186,
+        126
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AddressFrozenEvent",
+      "discriminator": [
+        79,
+        191,
+        146,
+        180,
+        135,
+        144,
+        196,
+        142
+      ]
+    },
+    {
+      "name": "KYCVerifiedEvent",
+      "discriminator": [
+        43,
+        204,
+        88,
+        120,
+        7,
+        91,
+        103,
+        108
+      ]
+    },
+    {
+      "name": "KYTCheckEvent",
+      "discriminator": [
+        65,
+        214,
+        185,
+        253,
+        10,
+        79,
+        216,
+        195
+      ]
+    },
+    {
+      "name": "TravelRuleEvent",
+      "discriminator": [
+        114,
+        24,
+        203,
+        207,
+        181,
+        13,
+        215,
+        220
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidProof",
+      "msg": "Invalid ZK proof"
+    },
+    {
+      "code": 6001,
+      "name": "ProofExpired",
+      "msg": "Proof expired"
+    },
+    {
+      "code": 6002,
+      "name": "HighRiskTransaction",
+      "msg": "High risk transaction blocked"
+    },
+    {
+      "code": 6003,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6004,
+      "name": "BelowTravelRuleThreshold",
+      "msg": "Below Travel Rule threshold"
+    },
+    {
+      "code": 6005,
+      "name": "KYCRequired",
+      "msg": "KYC verification required"
+    }
+  ],
+  "types": [
+    {
+      "name": "AddressFrozenEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "reason",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ComplianceAuthority",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "KYCVerifiedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "expiry",
+            "type": "i64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "KYTCheckEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "risk_score",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TravelRuleEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "sender",
+            "type": "pubkey"
+          },
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "payload_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "kyc_verified",
+            "type": "bool"
+          },
+          {
+            "name": "is_frozen",
+            "type": "bool"
+          },
+          {
+            "name": "kyc_expiry",
+            "type": "i64"
+          },
+          {
+            "name": "risk_score",
+            "type": "u8"
+          },
+          {
+            "name": "tx_count_24h",
+            "type": "u16"
+          },
+          {
+            "name": "last_tx_timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}

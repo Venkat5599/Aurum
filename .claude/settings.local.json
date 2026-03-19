@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm list:*)",
+      "Bash(cd:*)",
+      "Bash(npm run:*)",
+      "Bash(find 'C:/Users/ksubh/OneDrive/Documents/Solana hackathon' -name *.json -path */target/idl/*)",
+      "Bash(anchor build:*)",
+      "Bash(cargo --version)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\ksubh\\\\OneDrive\\\\Documents\\\\Solana hackathon\\\\frontend\\\\lib\\\\idl\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\ksubh\\\\OneDrive\\\\Documents\\\\Solana hackathon\\\\frontend\\\\lib\\\\programs\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\ksubh\\\\OneDrive\\\\Documents\\\\Solana hackathon\\\\frontend\\\\lib\\\\hooks\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\ksubh\\\\OneDrive\\\\Documents\\\\Solana hackathon\\\\frontend\\\\components\\\\compliance\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\ksubh\\\\OneDrive\\\\Documents\\\\Solana hackathon\\\\frontend\\\\components\\\\oracle\")",
+      "Bash(curl -s http://localhost:3003)"
+    ]
+  }
+}

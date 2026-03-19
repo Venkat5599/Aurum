@@ -1,51 +1,21 @@
 {
-  "name": "stableswift",
+  "name": "aurum",
   "version": "1.0.0",
-  "description": "Instant Cross-Border Stablecoin Payments for Businesses",
-  "private": true,
-  "workspaces": [
-    "app",
-    "backend",
-    "packages/*"
-  ],
+  "description": "Regulator-native programmable commodity vault on Solana",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:app\"",
-    "dev:app": "cd app && npm run dev",
-    "dev:backend": "cd backend && npm run dev",
-    "build": "npm run build:programs && npm run build:backend && npm run build:app",
-    "build:programs": "cd programs && anchor build",
-    "build:backend": "cd backend && npm run build",
-    "build:app": "cd app && npm run build",
-    "test": "npm run test:programs && npm run test:backend && npm run test:app",
-    "test:programs": "cd programs && anchor test",
-    "test:backend": "cd backend && npm run test",
-    "test:app": "cd app && npm run test",
-    "deploy:devnet": "cd programs && anchor deploy --provider.cluster devnet",
-    "deploy:mainnet": "cd programs && anchor deploy --provider.cluster mainnet",
-    "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "test": "anchor test",
+    "build": "anchor build",
+    "deploy": "anchor deploy --provider.cluster devnet",
+    "dev:frontend": "cd frontend && npm run dev",
+    "lint": "eslint . --ext .ts,.tsx"
   },
-  "keywords": [
-    "solana",
-    "stablecoin",
-    "payments",
-    "cross-border",
-    "usdc",
-    "defi"
-  ],
-  "author": "StableSwift Team",
+  "keywords": ["solana", "defi", "rwa", "stablecoin", "compliance"],
+  "author": "Aurum Team",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "@typescript-eslint/eslint-plugin": "^6.19.0",
-    "@typescript-eslint/parser": "^6.19.0",
-    "concurrently": "^8.2.2",
-    "eslint": "^8.56.0",
-    "prettier": "^3.2.4",
-    "typescript": "^5.3.3"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "@coral-xyz/anchor": "^0.30.0",
+    "@solana/web3.js": "^1.95.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
   }
 }

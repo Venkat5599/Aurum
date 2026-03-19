@@ -1,0 +1,392 @@
+{
+  "address": "4UP1g7N9ZFvQPvbiSTtXHjPYqFcR32g8BFgHeum4esCS",
+  "metadata": {
+    "name": "yield_optimizer",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Aurum yield optimizer for dynamic strategy allocation"
+  },
+  "instructions": [
+    {
+      "name": "allocate",
+      "docs": [
+        "Allocate funds to yield strategies"
+      ],
+      "discriminator": [
+        64,
+        38,
+        189,
+        129,
+        24,
+        157,
+        82,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "strategy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  97,
+                  116,
+                  101,
+                  103,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_strategy",
+      "docs": [
+        "Initialize yield strategy for user"
+      ],
+      "discriminator": [
+        208,
+        119,
+        144,
+        145,
+        178,
+        57,
+        105,
+        252
+      ],
+      "accounts": [
+        {
+          "name": "strategy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  97,
+                  116,
+                  101,
+                  103,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "risk_profile",
+          "type": {
+            "defined": {
+              "name": "RiskProfile"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "rebalance",
+      "docs": [
+        "Rebalance strategy based on market conditions"
+      ],
+      "discriminator": [
+        108,
+        158,
+        77,
+        9,
+        210,
+        52,
+        88,
+        62
+      ],
+      "accounts": [
+        {
+          "name": "strategy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  97,
+                  116,
+                  101,
+                  103,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "strategy.user",
+                "account": "YieldStrategy"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle"
+        },
+        {
+          "name": "compliance"
+        }
+      ],
+      "args": [
+        {
+          "name": "volatility",
+          "type": "u16"
+        },
+        {
+          "name": "kyt_risk",
+          "type": "u8"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "YieldStrategy",
+      "discriminator": [
+        153,
+        203,
+        41,
+        77,
+        234,
+        105,
+        146,
+        235
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AllocationEvent",
+      "discriminator": [
+        225,
+        38,
+        45,
+        4,
+        42,
+        192,
+        42,
+        148
+      ]
+    },
+    {
+      "name": "RebalanceEvent",
+      "discriminator": [
+        120,
+        27,
+        117,
+        235,
+        104,
+        42,
+        132,
+        75
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6001,
+      "name": "RebalanceTooSoon",
+      "msg": "Rebalance too soon"
+    }
+  ],
+  "types": [
+    {
+      "name": "AllocationEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_amount",
+            "type": "u64"
+          },
+          {
+            "name": "lending",
+            "type": "u64"
+          },
+          {
+            "name": "hedging",
+            "type": "u64"
+          },
+          {
+            "name": "liquid",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RebalanceEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "lending_pct",
+            "type": "u8"
+          },
+          {
+            "name": "hedging_pct",
+            "type": "u8"
+          },
+          {
+            "name": "liquid_pct",
+            "type": "u8"
+          },
+          {
+            "name": "estimated_apy",
+            "type": "u16"
+          },
+          {
+            "name": "volatility",
+            "type": "u16"
+          },
+          {
+            "name": "kyt_risk",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RiskProfile",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Conservative"
+          },
+          {
+            "name": "Moderate"
+          },
+          {
+            "name": "Aggressive"
+          }
+        ]
+      }
+    },
+    {
+      "name": "YieldStrategy",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "risk_profile",
+            "type": {
+              "defined": {
+                "name": "RiskProfile"
+              }
+            }
+          },
+          {
+            "name": "total_allocated",
+            "type": "u64"
+          },
+          {
+            "name": "lending_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "hedging_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "liquid_allocation",
+            "type": "u64"
+          },
+          {
+            "name": "target_lending_pct",
+            "type": "u8"
+          },
+          {
+            "name": "target_hedging_pct",
+            "type": "u8"
+          },
+          {
+            "name": "target_liquid_pct",
+            "type": "u8"
+          },
+          {
+            "name": "current_apy",
+            "type": "u16"
+          },
+          {
+            "name": "last_rebalance",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
