@@ -17,14 +17,21 @@
     "setup": "yarn install && cd frontend && yarn install",
     "start": "yarn init && yarn dev:frontend"
   },
-  "keywords": ["solana", "defi", "rwa", "stablecoin", "compliance"],
+  "keywords": [
+    "solana",
+    "defi",
+    "rwa",
+    "stablecoin",
+    "compliance"
+  ],
   "author": "Aurum Team",
   "license": "MIT",
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.0",
+    "@pythnetwork/client": "^2.22.1",
     "@solana/spl-token": "^0.4.0",
     "@solana/web3.js": "^1.95.0",
-    "@pythnetwork/client": "^2.21.0"
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
