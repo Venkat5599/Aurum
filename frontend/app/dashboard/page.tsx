@@ -164,57 +164,57 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - 2/3 width */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-8">
             {/* Action Tabs */}
-            <div className="glass-strong rounded-2xl overflow-hidden">
-              <div className="border-b border-border/40 glass">
-                <div className="flex">
+            <div className="glass-strong rounded-2xl overflow-hidden shadow-lg">
+              <div className="border-b border-border/40 glass p-2">
+                <div className="flex gap-2">
                   <button
                     onClick={() => setActiveTab('mint')}
-                    className={`flex-1 px-6 py-4 text-sm font-medium transition-all ${
+                    className={`flex-1 px-6 py-4 text-sm font-semibold rounded-lg transition-all ${
                       activeTab === 'mint'
-                        ? 'text-primary border-b-2 border-primary bg-primary/5'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                        ? 'text-primary-foreground bg-primary shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
-                    Mint
+                    Mint auUSD
                   </button>
                   <button
                     onClick={() => setActiveTab('redeem')}
-                    className={`flex-1 px-6 py-4 text-sm font-medium transition-all ${
+                    className={`flex-1 px-6 py-4 text-sm font-semibold rounded-lg transition-all ${
                       activeTab === 'redeem'
-                        ? 'text-primary border-b-2 border-primary bg-primary/5'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                        ? 'text-primary-foreground bg-primary shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
                     Redeem
                   </button>
                   <button
                     onClick={() => setActiveTab('compliance')}
-                    className={`flex-1 px-6 py-4 text-sm font-medium transition-all ${
+                    className={`flex-1 px-6 py-4 text-sm font-semibold rounded-lg transition-all ${
                       activeTab === 'compliance'
-                        ? 'text-primary border-b-2 border-primary bg-primary/5'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                        ? 'text-primary-foreground bg-primary shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
                     Compliance
                   </button>
                   <button
                     onClick={() => setActiveTab('yield')}
-                    className={`flex-1 px-6 py-4 text-sm font-medium transition-all ${
+                    className={`flex-1 px-6 py-4 text-sm font-semibold rounded-lg transition-all ${
                       activeTab === 'yield'
-                        ? 'text-primary border-b-2 border-primary bg-primary/5'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                        ? 'text-primary-foreground bg-primary shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
-                    Yield
+                    Yield Strategy
                   </button>
                 </div>
               </div>
 
-              <div className="p-8">
+              <div className="p-8 min-h-[500px]">
                 {activeTab === 'mint' && <MintTab oracle={oracle} />}
                 {activeTab === 'redeem' && <RedeemTab oracle={oracle} />}
                 {activeTab === 'compliance' && (
@@ -239,7 +239,9 @@ export default function Dashboard() {
             </div>
 
             {/* Charts Section */}
-            <YieldChart />
+            <div className="space-y-6">
+              <YieldChart />
+            </div>
           </div>
 
           {/* Right Column - 1/3 width */}

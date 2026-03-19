@@ -32,6 +32,21 @@ export default function Home() {
       {/* Hero */}
       <main>
         <section className="relative container mx-auto px-6 py-32 max-w-7xl overflow-hidden">
+          {/* Video Background */}
+          <div className="absolute inset-0 -z-10 overflow-hidden">
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover opacity-20"
+            >
+              <source src="/hero-video.mp4" type="video/mp4" />
+            </video>
+            {/* Gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
+          </div>
+
           {/* Animated background elements */}
           <div className="absolute inset-0 -z-10">
             <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse" />
