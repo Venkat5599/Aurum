@@ -39,12 +39,12 @@ export default function Home() {
               loop
               muted
               playsInline
-              className="absolute inset-0 w-full h-full object-cover opacity-20"
+              className="absolute inset-0 w-full h-full object-cover opacity-40"
             >
               <source src="/hero-video.mp4" type="video/mp4" />
             </video>
             {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background" />
           </div>
 
           {/* Animated background elements */}
