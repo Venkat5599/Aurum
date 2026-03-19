@@ -1,4 +1,12 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token::{Token, TokenAccount};
+use lending_pool::{
+    self,
+    program::LendingPool,
+    cpi::accounts::Deposit as LendingDeposit,
+    Pool as LendingPoolAccount,
+    UserPosition as LendingUserPosition,
+};
 
 declare_id!("4UP1g7N9ZFvQPvbiSTtXHjPYqFcR32g8BFgHeum4esCS");
 
@@ -43,22 +51,41 @@ pub mod yield_optimizer {
         amount: u64,
     ) -> Result<()> {
         let strategy = &mut ctx.accounts.strategy;
-        
+
         // Calculate allocation based on target percentages
         let lending_amount = amount
             .checked_mul(strategy.target_lending_pct as u64)
             .ok_or(YieldError::MathOverflow)?
             .checked_div(100)
             .ok_or(YieldError::MathOverflow)?;
-        
+
         let hedging_amount = amount
             .checked_mul(strategy.target_hedging_pct as u64)
             .ok_or(YieldError::MathOverflow)?
             .checked_div(100)
             .ok_or(YieldError::MathOverflow)?;
-        
+
         let liquid_amount = amount - lending_amount - hedging_amount;
-        
+
+        // Deploy lending allocation to lending pool via CPI
+        if lending_amount > 0 {
+            let cpi_program = ctx.accounts.lending_pool_program.to_account_info();
+            let cpi_accounts = LendingDeposit {
+                pool: ctx.accounts.lending_pool.to_account_info(),
+                user_position: ctx.accounts.lending_user_position.to_account_info(),
+                user: ctx.accounts.user.to_account_info(),
+                user_token_account: ctx.accounts.user_token_account.to_account_info(),
+                pool_vault: ctx.accounts.pool_vault.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+            };
+            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+
+            lending_pool::cpi::deposit(cpi_ctx, lending_amount)?;
+
+            msg!("Deployed {} to lending pool", lending_amount);
+        }
+
         // Update strategy state
         strategy.total_allocated = strategy.total_allocated
             .checked_add(amount)
@@ -72,10 +99,15 @@ pub mod yield_optimizer {
         strategy.liquid_allocation = strategy.liquid_allocation
             .checked_add(liquid_amount)
             .ok_or(YieldError::MathOverflow)?;
-        
-        // In production: CPI to lending/hedging protocols
-        // For MVP: Log allocation
-        
+
+        // Update APY from real lending pool data
+        let pool_account = &ctx.accounts.lending_pool;
+        strategy.current_apy = estimate_apy(
+            strategy.target_lending_pct,
+            strategy.target_hedging_pct,
+            pool_account.current_apy,
+        );
+
         emit!(AllocationEvent {
             user: strategy.user,
             total_amount: amount,
@@ -84,7 +116,7 @@ pub mod yield_optimizer {
             liquid: liquid_amount,
             timestamp: Clock::get()?.unix_timestamp,
         });
-        
+
         Ok(())
     }
 
@@ -96,33 +128,38 @@ pub mod yield_optimizer {
     ) -> Result<()> {
         let strategy = &mut ctx.accounts.strategy;
         let current_time = Clock::get()?.unix_timestamp;
-        
+
         // Only rebalance if > 1 hour since last rebalance
         require!(
             current_time - strategy.last_rebalance > 3600,
             YieldError::RebalanceTooSoon
         );
-        
+
         // Calculate new target allocations based on conditions
         let (new_lending, new_hedging, new_liquid) = calculate_optimal_allocation(
             strategy.risk_profile,
             volatility,
             kyt_risk,
         );
-        
+
         // Check if rebalance is needed (>5% deviation)
         let lending_diff = abs_diff(strategy.target_lending_pct, new_lending);
         let needs_rebalance = lending_diff > 5;
-        
+
         if needs_rebalance {
             strategy.target_lending_pct = new_lending;
             strategy.target_hedging_pct = new_hedging;
             strategy.target_liquid_pct = new_liquid;
             strategy.last_rebalance = current_time;
-            
-            // Calculate new APY estimate
-            strategy.current_apy = estimate_apy(new_lending, new_hedging, volatility);
-            
+
+            // Calculate new APY estimate using real lending pool data
+            let pool_account = &ctx.accounts.lending_pool;
+            strategy.current_apy = estimate_apy(
+                new_lending,
+                new_hedging,
+                pool_account.current_apy,
+            );
+
             emit!(RebalanceEvent {
                 user: strategy.user,
                 lending_pct: new_lending,
@@ -133,11 +170,11 @@ pub mod yield_optimizer {
                 kyt_risk,
                 timestamp: current_time,
             });
-            
-            msg!("Rebalanced: {}% lending, {}% hedging, {}% liquid", 
+
+            msg!("Rebalanced: {}% lending, {}% hedging, {}% liquid",
                 new_lending, new_hedging, new_liquid);
         }
-        
+
         Ok(())
     }
 }
@@ -169,8 +206,26 @@ pub struct Allocate<'info> {
         bump = strategy.bump
     )]
     pub strategy: Account<'info, YieldStrategy>,
-    
+
+    #[account(mut)]
     pub user: Signer<'info>,
+
+    // Lending pool accounts for CPI
+    #[account(mut)]
+    pub lending_pool: Account<'info, LendingPoolAccount>,
+
+    #[account(mut)]
+    pub lending_user_position: Account<'info, LendingUserPosition>,
+
+    #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub pool_vault: Account<'info, TokenAccount>,
+
+    pub lending_pool_program: Program<'info, LendingPool>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -181,10 +236,13 @@ pub struct Rebalance<'info> {
         bump = strategy.bump
     )]
     pub strategy: Account<'info, YieldStrategy>,
-    
+
+    /// Lending pool for reading current APY
+    pub lending_pool: Account<'info, LendingPoolAccount>,
+
     /// CHECK: Oracle account for price data
     pub oracle: UncheckedAccount<'info>,
-    
+
     /// CHECK: Compliance account for KYT data
     pub compliance: UncheckedAccount<'info>,
 }
@@ -282,17 +340,15 @@ fn calculate_optimal_allocation(
     (lending, hedging, liquid)
 }
 
-fn estimate_apy(lending_pct: u8, hedging_pct: u8, volatility: u16) -> u16 {
-    // Mock APY calculation
-    // Lending: 5-8% base
-    // Hedging: 8-15% (higher with volatility)
-    
-    let lending_apy = 600; // 6.00%
-    let hedging_apy = 1000 + (volatility / 10); // 10% + volatility bonus
-    
-    let weighted_apy = (lending_apy as u32 * lending_pct as u32 
+fn estimate_apy(lending_pct: u8, hedging_pct: u8, lending_pool_apy: u16) -> u16 {
+    // Use real lending pool APY instead of mock data
+    // Hedging: 8-15% (estimated based on market conditions)
+
+    let hedging_apy = 1000; // 10.00% base for hedging strategies
+
+    let weighted_apy = (lending_pool_apy as u32 * lending_pct as u32
         + hedging_apy as u32 * hedging_pct as u32) / 100;
-    
+
     weighted_apy.min(u16::MAX as u32) as u16
 }
 

@@ -14,7 +14,9 @@
       "Bash(mkdir -p \"C:\\\\Users\\\\ksubh\\\\OneDrive\\\\Documents\\\\Solana hackathon\\\\frontend\\\\lib\\\\hooks\")",
       "Bash(mkdir -p \"C:\\\\Users\\\\ksubh\\\\OneDrive\\\\Documents\\\\Solana hackathon\\\\frontend\\\\components\\\\compliance\")",
       "Bash(mkdir -p \"C:\\\\Users\\\\ksubh\\\\OneDrive\\\\Documents\\\\Solana hackathon\\\\frontend\\\\components\\\\oracle\")",
-      "Bash(curl -s http://localhost:3003)"
+      "Bash(curl -s http://localhost:3003)",
+      "Bash(node scripts/verify-integration.js)",
+      "Bash(yarn build:*)"
     ]
   }
 }

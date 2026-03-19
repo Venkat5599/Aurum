@@ -1,8 +1,14 @@
 use anchor_lang::prelude::*;
+use pyth_sdk_solana::load_price_feed_from_account_info;
 
 declare_id!("FC952j5bGogrdLzuxxtAEiHRaWhC2v984nRHHvFrcsNp");
 
 const PRICE_DECIMALS: u8 = 8; // 8 decimal places for prices
+
+// Pyth price feed IDs (Devnet)
+// Gold: XAU/USD
+// Silver: XAG/USD
+// Note: These are example IDs - update with actual Pyth feed IDs
 
 #[program]
 pub mod oracle {
@@ -23,7 +29,81 @@ pub mod oracle {
         Ok(())
     }
 
-    /// Update prices (called by authorized SIX data pusher)
+    /// Update prices from Pyth oracle
+    pub fn update_prices_from_pyth(
+        ctx: Context<UpdatePricesFromPyth>,
+    ) -> Result<()> {
+        let oracle_data = &mut ctx.accounts.oracle_data;
+
+        require!(
+            ctx.accounts.authority.key() == oracle_data.authority,
+            OracleError::Unauthorized
+        );
+
+        // Load Pyth price feeds
+        let gold_price_feed = load_price_feed_from_account_info(&ctx.accounts.gold_price_feed)
+            .map_err(|_| OracleError::InvalidPythFeed)?;
+        let silver_price_feed = load_price_feed_from_account_info(&ctx.accounts.silver_price_feed)
+            .map_err(|_| OracleError::InvalidPythFeed)?;
+
+        // Get current prices
+        let gold_price_data = gold_price_feed.get_current_price()
+            .ok_or(OracleError::PriceNotAvailable)?;
+        let silver_price_data = silver_price_feed.get_current_price()
+            .ok_or(OracleError::PriceNotAvailable)?;
+
+        // Convert Pyth prices to our format (8 decimals)
+        // Pyth prices have their own exponent, we need to normalize
+        let gold_price = normalize_pyth_price(gold_price_data.price, gold_price_data.expo)?;
+        let silver_price = normalize_pyth_price(silver_price_data.price, silver_price_data.expo)?;
+
+        // Validate prices (sanity checks)
+        require!(
+            gold_price > 100_000_000_000 && gold_price < 1_000_000_000_000, // $1K - $10K
+            OracleError::InvalidPrice
+        );
+
+        require!(
+            silver_price > 1_000_000_000 && silver_price < 100_000_000_000, // $10 - $1K
+            OracleError::InvalidPrice
+        );
+
+        let current_time = Clock::get()?.unix_timestamp;
+
+        // Calculate volatility
+        let gold_volatility = if oracle_data.gold_price_usd > 0 {
+            calculate_volatility(oracle_data.gold_price_usd, gold_price)
+        } else {
+            0
+        };
+
+        // Update oracle data
+        oracle_data.gold_price_usd = gold_price;
+        oracle_data.silver_price_usd = silver_price;
+        // EUR/USD rate remains from manual update or set to default
+        if oracle_data.eur_usd_rate == 0 {
+            oracle_data.eur_usd_rate = 108000000; // Default 1.08
+        }
+        oracle_data.last_update = current_time;
+        oracle_data.update_count += 1;
+
+        emit!(PriceUpdateEvent {
+            gold_price,
+            silver_price,
+            eur_usd_rate: oracle_data.eur_usd_rate,
+            volatility: gold_volatility,
+            timestamp: current_time,
+        });
+
+        // Trigger rebalance if high volatility (>5%)
+        if gold_volatility > 500 {
+            msg!("HIGH_VOLATILITY_ALERT: {}%", gold_volatility as f64 / 100.0);
+        }
+
+        Ok(())
+    }
+
+    /// Update prices manually (fallback method)
     pub fn update_prices(
         ctx: Context<UpdatePrices>,
         gold_price: u64,      // Price in USD with 8 decimals (e.g., 265000000000 = $2650.00)
@@ -135,6 +215,24 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
+pub struct UpdatePricesFromPyth<'info> {
+    #[account(
+        mut,
+        seeds = [b"oracle", oracle_data.authority.as_ref()],
+        bump = oracle_data.bump
+    )]
+    pub oracle_data: Account<'info, OracleData>,
+
+    pub authority: Signer<'info>,
+
+    /// CHECK: Pyth price feed for gold (XAU/USD)
+    pub gold_price_feed: AccountInfo<'info>,
+
+    /// CHECK: Pyth price feed for silver (XAG/USD)
+    pub silver_price_feed: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
 pub struct UpdatePrices<'info> {
     #[account(
         mut,
@@ -142,7 +240,7 @@ pub struct UpdatePrices<'info> {
         bump = oracle_data.bump
     )]
     pub oracle_data: Account<'info, OracleData>,
-    
+
     pub authority: Signer<'info>,
 }
 
@@ -188,6 +286,12 @@ pub enum OracleError {
     StaleData,
     #[msg("Math overflow")]
     MathOverflow,
+    #[msg("Invalid Pyth price feed")]
+    InvalidPythFeed,
+    #[msg("Price not available from Pyth")]
+    PriceNotAvailable,
+    #[msg("Price conversion error")]
+    PriceConversionError,
 }
 
 // Helper functions

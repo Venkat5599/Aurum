@@ -1,6 +1,47 @@
-import { Connection, PublicKey } from '@solana/web3.js'
+import { Connection, PublicKey, SystemProgram } from '@solana/web3.js'
 import { AnchorWallet } from '@solana/wallet-adapter-react'
+import { AnchorProvider, Program, BN } from '@coral-xyz/anchor'
 import { toast } from 'sonner'
+import { PROGRAM_IDS, CLUSTER } from '../programs/constants'
+import { deriveUserStatePDA } from '../programs/pdas'
+import complianceIdl from '../idl/compliance.json'
+
+/**
+ * Initialize user compliance state (must be called before KYC verification)
+ */
+export async function initializeUser(
+  connection: Connection,
+  wallet: AnchorWallet
+) {
+  try {
+    const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
+    const program = new Program(complianceIdl as any, PROGRAM_IDS.compliance, provider)
+
+    const [userStatePDA] = deriveUserStatePDA(wallet.publicKey)
+
+    // Check if already initialized
+    try {
+      await program.account.userState.fetch(userStatePDA)
+      return { success: true, alreadyInitialized: true }
+    } catch {
+      // Not initialized, proceed
+    }
+
+    const tx = await program.methods
+      .initializeUser()
+      .accounts({
+        userState: userStatePDA,
+        user: wallet.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc()
+
+    return { success: true, signature: tx }
+  } catch (error: any) {
+    console.error('Initialize user error:', error)
+    throw error
+  }
+}
 
 /**
  * Verify KYC with zero-knowledge proof
@@ -16,25 +57,39 @@ export async function verifyKyc(
   try {
     toast.loading('Verifying KYC...')
 
-    // TODO: Build actual transaction using Anchor
-    // This is a placeholder for the real implementation
+    const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
+    const program = new Program(complianceIdl as any, PROGRAM_IDS.compliance, provider)
 
-    // 1. Derive user state PDA
-    // 2. Build verify_kyc instruction with ZK proof
-    // 3. Send and confirm transaction
+    // 1. Ensure user state is initialized
+    await initializeUser(connection, wallet)
 
-    // Simulate transaction for demo
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // 2. Derive user state PDA
+    const [userStatePDA] = deriveUserStatePDA(wallet.publicKey)
+
+    // 3. Generate mock ZK proof (in production, use actual ZK circuit)
+    const mockProof = proofData || Buffer.from(new Array(64).fill(0).map(() => Math.floor(Math.random() * 256)))
+
+    // KYC expiry: 1 year from now
+    const expiry = new BN(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60)
+
+    // 4. Build verify_kyc instruction
+    const tx = await program.methods
+      .verifyKyc(Array.from(mockProof), expiry)
+      .accounts({
+        userState: userStatePDA,
+        user: wallet.publicKey,
+      })
+      .rpc()
 
     toast.success('KYC Verified!', {
       description: 'Your identity has been verified with zero-knowledge proofs',
       action: {
         label: 'View on Explorer',
-        onClick: () => window.open('https://explorer.solana.com/?cluster=devnet', '_blank')
+        onClick: () => window.open(`https://explorer.solana.com/tx/${tx}?cluster=${CLUSTER}`, '_blank')
       }
     })
 
-    return { success: true }
+    return { success: true, signature: tx }
   } catch (error: any) {
     console.error('KYC verification error:', error)
     toast.error('KYC verification failed', {
@@ -48,7 +103,7 @@ export async function verifyKyc(
  * Perform KYT check before transaction
  * @param connection Solana connection
  * @param wallet User's wallet
- * @param amount Transaction amount
+ * @param amount Transaction amount (in lamports)
  * @param recipient Recipient address
  */
 export async function checkKyt(
@@ -58,24 +113,35 @@ export async function checkKyt(
   recipient: PublicKey
 ) {
   try {
-    // TODO: Build actual transaction using Anchor
-    // This is a placeholder for the real implementation
+    const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
+    const program = new Program(complianceIdl as any, PROGRAM_IDS.compliance, provider)
 
     // 1. Derive user state PDA
-    // 2. Call kyt_check instruction
-    // 3. Get risk score from account data
+    const [userStatePDA] = deriveUserStatePDA(wallet.publicKey)
 
-    // Simulate KYT check for demo
-    const riskScore = Math.floor(Math.random() * 40) // 0-40 for demo
+    // 2. Call kyt_check instruction
+    const amountBN = new BN(amount)
+
+    const tx = await program.methods
+      .kytCheck(amountBN, recipient)
+      .accounts({
+        userState: userStatePDA,
+        user: wallet.publicKey,
+      })
+      .rpc()
+
+    // 3. Fetch updated risk score
+    const userState = await program.account.userState.fetch(userStatePDA)
+    const riskScore = userState.riskScore
 
     if (riskScore > 60) {
       toast.error('Transaction blocked', {
         description: `High risk score: ${riskScore}. Contact compliance team.`
       })
-      return { success: false, riskScore }
+      return { success: false, riskScore, signature: tx }
     }
 
-    return { success: true, riskScore }
+    return { success: true, riskScore, signature: tx }
   } catch (error: any) {
     console.error('KYT check error:', error)
     throw error
@@ -86,29 +152,41 @@ export async function checkKyt(
  * Generate Travel Rule payload for transfers >$3K
  * @param connection Solana connection
  * @param wallet User's wallet
- * @param amount Transaction amount in USD
+ * @param amount Transaction amount in USD (lamports with 6 decimals)
+ * @param recipient Recipient public key
  */
 export async function generateTravelRulePayload(
   connection: Connection,
   wallet: AnchorWallet,
-  amount: number
+  amount: number,
+  recipient: PublicKey
 ) {
   try {
-    if (amount < 3000) {
+    // Check if Travel Rule applies (>$3000)
+    if (amount < 3000 * 1_000_000) {
       return { required: false }
     }
 
     toast.loading('Generating Travel Rule payload...')
 
-    // TODO: Build actual transaction using Anchor
-    // This is a placeholder for the real implementation
+    const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
+    const program = new Program(complianceIdl as any, PROGRAM_IDS.compliance, provider)
 
-    // 1. Call generate_travel_rule_payload instruction
-    // 2. Encrypt sender/recipient information
-    // 3. Attach to transaction
+    // 1. Derive PDAs
+    const [senderStatePDA] = deriveUserStatePDA(wallet.publicKey)
+    const [recipientStatePDA] = deriveUserStatePDA(recipient)
 
-    // Simulate payload generation for demo
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // 2. Call generate_travel_rule_payload instruction
+    const amountBN = new BN(amount)
+
+    const tx = await program.methods
+      .generateTravelRulePayload(amountBN)
+      .accounts({
+        senderState: senderStatePDA,
+        recipientState: recipientStatePDA,
+        sender: wallet.publicKey,
+      })
+      .rpc()
 
     toast.success('Travel Rule payload generated', {
       description: 'Encrypted compliance data attached to transaction'
@@ -116,8 +194,9 @@ export async function generateTravelRulePayload(
 
     return {
       required: true,
-      payload: 'encrypted_payload_data',
-      success: true
+      payload: tx, // In production, this would be encrypted payload data
+      success: true,
+      signature: tx
     }
   } catch (error: any) {
     console.error('Travel Rule generation error:', error)

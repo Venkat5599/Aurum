@@ -1,12 +1,12 @@
 [package]
-name = "oracle"
+name = "lending_pool"
 version = "0.1.0"
-description = "Aurum oracle program for SIX precious metals pricing"
+description = "Aurum lending pool for yield generation"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "oracle"
+name = "lending_pool"
 
 [features]
 no-entrypoint = []
@@ -17,5 +17,5 @@ default = []
 idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
-anchor-lang = "0.32.1"
-pyth-sdk-solana = "0.10.0"
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
+anchor-spl = "0.32.1"

@@ -7,15 +7,28 @@
     "build": "anchor build",
     "deploy": "anchor deploy --provider.cluster devnet",
     "dev:frontend": "cd frontend && npm run dev",
-    "lint": "eslint . --ext .ts,.tsx"
+    "lint": "eslint . --ext .ts,.tsx",
+    "init": "ts-node scripts/initialize-programs.ts",
+    "update-prices": "ts-node scripts/update-oracle-prices.ts",
+    "update-prices-pyth": "ts-node scripts/pyth-price-updater.ts",
+    "watch-prices": "ts-node scripts/pyth-price-updater.ts --watch",
+    "demo": "ts-node scripts/demo-flow.ts",
+    "verify": "node scripts/verify-integration.js",
+    "setup": "yarn install && cd frontend && yarn install",
+    "start": "yarn init && yarn dev:frontend"
   },
   "keywords": ["solana", "defi", "rwa", "stablecoin", "compliance"],
   "author": "Aurum Team",
   "license": "MIT",
-  "devDependencies": {
+  "dependencies": {
     "@coral-xyz/anchor": "^0.30.0",
+    "@solana/spl-token": "^0.4.0",
     "@solana/web3.js": "^1.95.0",
+    "@pythnetwork/client": "^2.21.0"
+  },
+  "devDependencies": {
     "@types/node": "^20.0.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.0"
   }
 }
