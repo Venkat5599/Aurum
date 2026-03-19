@@ -31,7 +31,7 @@ export default function Home() {
 
       {/* Hero */}
       <main>
-        <section className="relative container mx-auto px-6 py-32 max-w-7xl overflow-hidden">
+        <section className="relative w-full px-0 py-32 overflow-hidden">
           {/* Video Background */}
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <video
@@ -54,7 +54,7 @@ export default function Home() {
           </div>
 
           {/* Hero Content */}
-          <div className="relative z-10 text-center max-w-5xl mx-auto">
+          <div className="relative z-10 text-center max-w-5xl mx-auto px-6">
             <div className="inline-flex items-center gap-2 mb-8 px-5 py-2.5 glass-strong rounded-full glow">
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-foreground">StableHacks 2026 Submission</span>
