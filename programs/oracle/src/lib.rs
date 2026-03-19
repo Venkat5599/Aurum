@@ -168,10 +168,10 @@ pub mod oracle {
     ) -> Result<u64> {
         let oracle_data = &ctx.accounts.oracle_data;
         
-        // Ensure data is fresh (< 5 minutes old)
+        // Ensure data is fresh (< 1 hour old for demo)
         let current_time = Clock::get()?.unix_timestamp;
         require!(
-            current_time - oracle_data.last_update < 300,
+            current_time - oracle_data.last_update < 3600,
             OracleError::StaleData
         );
         

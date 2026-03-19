@@ -24,7 +24,7 @@ export const SEEDS = {
 // Constants from Rust programs
 export const PRICE_DECIMALS = 8 // Oracle uses 8 decimal precision
 export const TRAVEL_RULE_THRESHOLD = 3_000_000_000 // $3,000 in micro-lamports (6 decimals)
-export const STALENESS_THRESHOLD = 300 // 5 minutes in seconds
+export const STALENESS_THRESHOLD = 3600 // 1 hour in seconds (for demo)
 export const HIGH_VOLATILITY_THRESHOLD = 500 // 5% in basis points
 
 // Risk score thresholds
