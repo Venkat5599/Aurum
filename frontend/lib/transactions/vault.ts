@@ -41,6 +41,25 @@ export async function mintAuusd(
 
     const instructions = []
     
+    // Check if user state exists, if not add initialize instruction
+    const userStateInfo = await connection.getAccountInfo(userStatePDA)
+    if (!userStateInfo) {
+      // InitializeUser discriminator: [111, 17, 185, 250, 60, 122, 38, 254]
+      const initUserDiscriminator = Buffer.from([111, 17, 185, 250, 60, 122, 38, 254])
+      
+      const initUserIx = new (require('@solana/web3.js').TransactionInstruction)({
+        keys: [
+          { pubkey: userStatePDA, isSigner: false, isWritable: true },
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ],
+        programId: PROGRAM_IDS.vault,
+        data: initUserDiscriminator,
+      })
+      
+      instructions.push(initUserIx)
+    }
+    
     // Create auUSD ATA if needed
     try {
       await getAccount(connection, userAuusdAta)
