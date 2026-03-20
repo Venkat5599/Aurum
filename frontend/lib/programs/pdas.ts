@@ -12,6 +12,16 @@ export function deriveUserStatePDA(wallet: PublicKey): [PublicKey, number] {
 }
 
 /**
+ * Derive PDA for vault user state
+ */
+export function deriveVaultUserStatePDA(wallet: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('user_state'), wallet.toBuffer()],
+    PROGRAM_IDS.vault
+  )
+}
+
+/**
  * Derive PDA for user yield strategy
  */
 export function deriveStrategyPDA(wallet: PublicKey): [PublicKey, number] {

@@ -4,7 +4,7 @@ import { AnchorProvider, Program, BN } from '@coral-xyz/anchor'
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } from '@solana/spl-token'
 import { toast } from 'sonner'
 import { PROGRAM_IDS, CLUSTER } from '../programs/constants'
-import { deriveVaultPDA, deriveUserStatePDA } from '../programs/pdas'
+import { deriveVaultPDA, deriveVaultUserStatePDA } from '../programs/pdas'
 import vaultIdl from '../idl/vault.json'
 
 // Vault authority (should match the authority used during vault initialization)
@@ -27,7 +27,7 @@ export async function mintAuusd(
     toast.loading('Preparing mint transaction...')
 
     const [vaultPDA] = deriveVaultPDA(VAULT_AUTHORITY)
-    const [userStatePDA] = deriveUserStatePDA(wallet.publicKey)
+    const [userStatePDA] = deriveVaultUserStatePDA(wallet.publicKey)
 
     const auusdMint = PROGRAM_IDS.auusdMint
     const userAuusdAta = await getAssociatedTokenAddress(auusdMint, wallet.publicKey)
