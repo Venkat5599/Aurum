@@ -1,7 +1,7 @@
 import { Connection, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from '@solana/web3.js'
 import { AnchorWallet } from '@solana/wallet-adapter-react'
 import { AnchorProvider, Program, BN } from '@coral-xyz/anchor'
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } from '@solana/spl-token'
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token'
 import { toast } from 'sonner'
 import { PROGRAM_IDS, CLUSTER } from '../programs/constants'
 import { deriveVaultPDA, deriveVaultUserStatePDA } from '../programs/pdas'
@@ -24,7 +24,7 @@ export async function mintAuusd(
   collateralType: 'gold' | 'silver'
 ) {
   try {
-    toast.loading('Preparing mint transaction...')
+    toast.loading('Preparing transaction...')
 
     const [vaultPDA] = deriveVaultPDA(VAULT_AUTHORITY)
     const [userStatePDA] = deriveVaultUserStatePDA(wallet.publicKey)
@@ -41,12 +41,16 @@ export async function mintAuusd(
 
     const instructions = []
     
-    // Check if user state exists, if not add initialize instruction
-    const userStateInfo = await connection.getAccountInfo(userStatePDA)
+    // Check accounts in parallel for speed
+    const [userStateInfo, vaultCollateralInfo, userAuusdInfo] = await Promise.all([
+      connection.getAccountInfo(userStatePDA),
+      connection.getAccountInfo(vaultCollateralAta),
+      connection.getAccountInfo(userAuusdAta)
+    ])
+    
+    // Add initialize user instruction if needed
     if (!userStateInfo) {
-      // InitializeUser discriminator: [111, 17, 185, 250, 60, 122, 38, 254]
       const initUserDiscriminator = Buffer.from([111, 17, 185, 250, 60, 122, 38, 254])
-      
       const initUserIx = new (require('@solana/web3.js').TransactionInstruction)({
         keys: [
           { pubkey: userStatePDA, isSigner: false, isWritable: true },
@@ -56,14 +60,11 @@ export async function mintAuusd(
         programId: PROGRAM_IDS.vault,
         data: initUserDiscriminator,
       })
-      
       instructions.push(initUserIx)
     }
     
     // Create vault collateral ATA if needed
-    try {
-      await getAccount(connection, vaultCollateralAta)
-    } catch {
+    if (!vaultCollateralInfo) {
       instructions.push(
         createAssociatedTokenAccountInstruction(
           wallet.publicKey,
@@ -74,10 +75,8 @@ export async function mintAuusd(
       )
     }
     
-    // Create auUSD ATA if needed
-    try {
-      await getAccount(connection, userAuusdAta)
-    } catch {
+    // Create user auUSD ATA if needed
+    if (!userAuusdInfo) {
       instructions.push(
         createAssociatedTokenAccountInstruction(
           wallet.publicKey,
@@ -88,20 +87,15 @@ export async function mintAuusd(
       )
     }
 
-    // Build mint instruction manually
+    // Build mint instruction
     const collateralAmountLamports = new BN(collateralAmount * 1_000_000)
     const auusdAmount = new BN(Math.floor(collateralAmount * 2650 * 1_000_000 / 1.1))
 
-    // Mint discriminator from IDL: [66, 132, 7, 211, 94, 36, 181, 99]
     const discriminator = Buffer.from([66, 132, 7, 211, 94, 36, 181, 99])
-    
-    // Encode arguments: amount (u64) + collateral_amount (u64)
     const amountBuffer = Buffer.alloc(8)
     amountBuffer.writeBigUInt64LE(BigInt(auusdAmount.toString()))
-    
     const collateralBuffer = Buffer.alloc(8)
     collateralBuffer.writeBigUInt64LE(BigInt(collateralAmountLamports.toString()))
-    
     const data = Buffer.concat([discriminator, amountBuffer, collateralBuffer])
 
     const mintIx = new (require('@solana/web3.js').TransactionInstruction)({
@@ -118,20 +112,30 @@ export async function mintAuusd(
       programId: PROGRAM_IDS.vault,
       data,
     })
-
     instructions.push(mintIx)
 
-    const { blockhash } = await connection.getLatestBlockhash()
+    // Build and send transaction
+    const { blockhash } = await connection.getLatestBlockhash('confirmed')
     const transaction = new Transaction()
     transaction.recentBlockhash = blockhash
     transaction.feePayer = wallet.publicKey
     instructions.forEach(ix => transaction.add(ix))
 
+    toast.dismiss()
+    toast.loading('Awaiting signature...')
+    
     const signed = await wallet.signTransaction(transaction)
-    const signature = await connection.sendRawTransaction(signed.serialize())
     
     toast.dismiss()
-    toast.loading('Confirming transaction...')
+    toast.loading('Sending transaction...')
+    
+    const signature = await connection.sendRawTransaction(signed.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed'
+    })
+    
+    toast.dismiss()
+    toast.loading('Confirming...')
     
     await connection.confirmTransaction(signature, 'confirmed')
 
@@ -139,7 +143,7 @@ export async function mintAuusd(
     toast.success('Successfully minted auUSD!', {
       description: `Deposited ${collateralAmount} ${collateralType.toUpperCase()}`,
       action: {
-        label: 'View on Explorer',
+        label: 'View',
         onClick: () => window.open(`https://explorer.solana.com/tx/${signature}?cluster=${CLUSTER}`, '_blank')
       }
     })
@@ -179,7 +183,7 @@ export async function redeemAuusd(
   collateralType: 'gold' | 'silver'
 ) {
   try {
-    toast.loading('Preparing redeem transaction...')
+    toast.loading('Preparing transaction...')
 
     const [vaultPDA] = deriveVaultPDA(VAULT_AUTHORITY)
 
@@ -195,13 +199,9 @@ export async function redeemAuusd(
 
     const auusdAmountLamports = new BN(auusdAmount * 1_000_000)
 
-    // Redeem discriminator from IDL: [67, 0, 245, 36, 192, 7, 199, 168]
     const discriminator = Buffer.from([67, 0, 245, 36, 192, 7, 199, 168])
-    
-    // Encode argument: amount (u64)
     const amountBuffer = Buffer.alloc(8)
     amountBuffer.writeBigUInt64LE(BigInt(auusdAmountLamports.toString()))
-    
     const data = Buffer.concat([discriminator, amountBuffer])
 
     const redeemIx = new (require('@solana/web3.js').TransactionInstruction)({
@@ -218,17 +218,27 @@ export async function redeemAuusd(
       data,
     })
 
-    const { blockhash } = await connection.getLatestBlockhash()
+    const { blockhash } = await connection.getLatestBlockhash('confirmed')
     const transaction = new Transaction()
     transaction.recentBlockhash = blockhash
     transaction.feePayer = wallet.publicKey
     transaction.add(redeemIx)
 
+    toast.dismiss()
+    toast.loading('Awaiting signature...')
+    
     const signed = await wallet.signTransaction(transaction)
-    const signature = await connection.sendRawTransaction(signed.serialize())
     
     toast.dismiss()
-    toast.loading('Confirming transaction...')
+    toast.loading('Sending transaction...')
+    
+    const signature = await connection.sendRawTransaction(signed.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed'
+    })
+    
+    toast.dismiss()
+    toast.loading('Confirming...')
     
     await connection.confirmTransaction(signature, 'confirmed')
 
@@ -236,7 +246,7 @@ export async function redeemAuusd(
     toast.success('Successfully redeemed collateral!', {
       description: `Burned ${auusdAmount} auUSD`,
       action: {
-        label: 'View on Explorer',
+        label: 'View',
         onClick: () => window.open(`https://explorer.solana.com/tx/${signature}?cluster=${CLUSTER}`, '_blank')
       }
     })
@@ -251,6 +261,8 @@ export async function redeemAuusd(
       errorMessage = 'Insufficient auUSD balance'
     } else if (error.message?.includes('0x1')) {
       errorMessage = 'Insufficient funds for transaction'
+    } else if (error.message?.includes('User rejected')) {
+      errorMessage = 'Transaction cancelled'
     }
     
     toast.error('Redeem failed', {
