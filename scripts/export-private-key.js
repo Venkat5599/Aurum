@@ -1,10 +1,25 @@
+/**
+ * Export Private Key Script
+ * 
+ * ⚠️ SECURITY WARNING ⚠️
+ * This script exports your Solana wallet private key.
+ * - Only use on DEVNET/TESTNET wallets
+ * - NEVER use with mainnet wallets containing real funds
+ * - The exported key gives FULL ACCESS to the wallet
+ * - Keep the exported file secure and delete after use
+ * - This creates a file that is gitignored for safety
+ * 
+ * This script is for development/testing purposes only.
+ */
+
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const bs58 = require('bs58');
 
 async function main() {
-  console.log('Exporting Private Key for Phantom Wallet\n');
+  console.log('⚠️  SECURITY WARNING: Exporting Private Key ⚠️\n');
+  console.log('This should ONLY be used for DEVNET/TESTNET wallets!\n');
   console.log('==========================================\n');
   
   // Read the keypair file

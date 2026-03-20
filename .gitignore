@@ -60,9 +60,17 @@ tmp/
 temp/
 *.tmp
 
-# Secrets
+# Secrets and Private Keys
 *.pem
 *.key
 secrets/
 private-key-phantom.txt
 private-key-*.txt
+.env.production
+
+# Build artifacts
+*.tsbuildinfo
+.turbo/
+
+# Vercel
+.vercel/
