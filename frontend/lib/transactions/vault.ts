@@ -60,6 +60,20 @@ export async function mintAuusd(
       instructions.push(initUserIx)
     }
     
+    // Create vault collateral ATA if needed
+    try {
+      await getAccount(connection, vaultCollateralAta)
+    } catch {
+      instructions.push(
+        createAssociatedTokenAccountInstruction(
+          wallet.publicKey,
+          vaultCollateralAta,
+          vaultPDA,
+          collateralMint
+        )
+      )
+    }
+    
     // Create auUSD ATA if needed
     try {
       await getAccount(connection, userAuusdAta)
