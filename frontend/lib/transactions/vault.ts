@@ -26,9 +26,6 @@ export async function mintAuusd(
   try {
     toast.loading('Preparing mint transaction...')
 
-    const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
-    const program = new Program(vaultIdl as any, PROGRAM_IDS.vault, provider)
-
     const [vaultPDA] = deriveVaultPDA(VAULT_AUTHORITY)
     const [userStatePDA] = deriveUserStatePDA(wallet.publicKey)
 
@@ -58,22 +55,36 @@ export async function mintAuusd(
       )
     }
 
+    // Build mint instruction manually
     const collateralAmountLamports = new BN(collateralAmount * 1_000_000)
     const auusdAmount = new BN(Math.floor(collateralAmount * 2650 * 1_000_000 / 1.1))
 
-    const mintIx = await program.methods
-      .mintAuusd(auusdAmount, collateralAmountLamports)
-      .accounts({
-        vault: vaultPDA,
-        user: wallet.publicKey,
-        userState: userStatePDA,
-        auusdMint: auusdMint,
-        userAuusd: userAuusdAta,
-        userCollateral: userCollateralAta,
-        vaultCollateral: vaultCollateralAta,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .instruction()
+    // Mint discriminator from IDL: [66, 132, 7, 211, 94, 36, 181, 99]
+    const discriminator = Buffer.from([66, 132, 7, 211, 94, 36, 181, 99])
+    
+    // Encode arguments: amount (u64) + collateral_amount (u64)
+    const amountBuffer = Buffer.alloc(8)
+    amountBuffer.writeBigUInt64LE(BigInt(auusdAmount.toString()))
+    
+    const collateralBuffer = Buffer.alloc(8)
+    collateralBuffer.writeBigUInt64LE(BigInt(collateralAmountLamports.toString()))
+    
+    const data = Buffer.concat([discriminator, amountBuffer, collateralBuffer])
+
+    const mintIx = new (require('@solana/web3.js').TransactionInstruction)({
+      keys: [
+        { pubkey: vaultPDA, isSigner: false, isWritable: true },
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+        { pubkey: userStatePDA, isSigner: false, isWritable: true },
+        { pubkey: auusdMint, isSigner: false, isWritable: true },
+        { pubkey: userAuusdAta, isSigner: false, isWritable: true },
+        { pubkey: userCollateralAta, isSigner: false, isWritable: true },
+        { pubkey: vaultCollateralAta, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      ],
+      programId: PROGRAM_IDS.vault,
+      data,
+    })
 
     instructions.push(mintIx)
 
@@ -85,7 +96,11 @@ export async function mintAuusd(
 
     const signed = await wallet.signTransaction(transaction)
     const signature = await connection.sendRawTransaction(signed.serialize())
-    await connection.confirmTransaction(signature)
+    
+    toast.dismiss()
+    toast.loading('Confirming transaction...')
+    
+    await connection.confirmTransaction(signature, 'confirmed')
 
     toast.dismiss()
     toast.success('Successfully minted auUSD!', {
@@ -106,6 +121,8 @@ export async function mintAuusd(
       errorMessage = 'Insufficient collateral balance'
     } else if (error.message?.includes('0x1')) {
       errorMessage = 'Insufficient funds for transaction'
+    } else if (error.message?.includes('User rejected')) {
+      errorMessage = 'Transaction cancelled'
     }
     
     toast.error('Mint failed', {
@@ -131,9 +148,6 @@ export async function redeemAuusd(
   try {
     toast.loading('Preparing redeem transaction...')
 
-    const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
-    const program = new Program(vaultIdl as any, PROGRAM_IDS.vault, provider)
-
     const [vaultPDA] = deriveVaultPDA(VAULT_AUTHORITY)
 
     const auusdMint = PROGRAM_IDS.auusdMint
@@ -148,18 +162,28 @@ export async function redeemAuusd(
 
     const auusdAmountLamports = new BN(auusdAmount * 1_000_000)
 
-    const redeemIx = await program.methods
-      .redeemAuusd(auusdAmountLamports)
-      .accounts({
-        vault: vaultPDA,
-        user: wallet.publicKey,
-        auusdMint: auusdMint,
-        userAuusd: userAuusdAta,
-        userCollateral: userCollateralAta,
-        vaultCollateral: vaultCollateralAta,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .instruction()
+    // Redeem discriminator from IDL: [67, 0, 245, 36, 192, 7, 199, 168]
+    const discriminator = Buffer.from([67, 0, 245, 36, 192, 7, 199, 168])
+    
+    // Encode argument: amount (u64)
+    const amountBuffer = Buffer.alloc(8)
+    amountBuffer.writeBigUInt64LE(BigInt(auusdAmountLamports.toString()))
+    
+    const data = Buffer.concat([discriminator, amountBuffer])
+
+    const redeemIx = new (require('@solana/web3.js').TransactionInstruction)({
+      keys: [
+        { pubkey: vaultPDA, isSigner: false, isWritable: true },
+        { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+        { pubkey: auusdMint, isSigner: false, isWritable: true },
+        { pubkey: userAuusdAta, isSigner: false, isWritable: true },
+        { pubkey: userCollateralAta, isSigner: false, isWritable: true },
+        { pubkey: vaultCollateralAta, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      ],
+      programId: PROGRAM_IDS.vault,
+      data,
+    })
 
     const { blockhash } = await connection.getLatestBlockhash()
     const transaction = new Transaction()
@@ -169,7 +193,11 @@ export async function redeemAuusd(
 
     const signed = await wallet.signTransaction(transaction)
     const signature = await connection.sendRawTransaction(signed.serialize())
-    await connection.confirmTransaction(signature)
+    
+    toast.dismiss()
+    toast.loading('Confirming transaction...')
+    
+    await connection.confirmTransaction(signature, 'confirmed')
 
     toast.dismiss()
     toast.success('Successfully redeemed collateral!', {
