@@ -6,6 +6,7 @@ export const PROGRAM_IDS = {
   compliance: new PublicKey(process.env.NEXT_PUBLIC_COMPLIANCE_PROGRAM_ID || 'zcqKh45k7YMcD17VPFdf4kg7K26nkNFojdzQdL8gahz'),
   oracle: new PublicKey(process.env.NEXT_PUBLIC_ORACLE_PROGRAM_ID || 'FC952j5bGogrdLzuxxtAEiHRaWhC2v984nRHHvFrcsNp'),
   yieldOptimizer: new PublicKey(process.env.NEXT_PUBLIC_YIELD_PROGRAM_ID || '4UP1g7N9ZFvQPvbiSTtXHjPYqFcR32g8BFgHeum4esCS'),
+  lendingPool: new PublicKey(process.env.NEXT_PUBLIC_LENDING_POOL_PROGRAM_ID || 'D9StNM3VEdCopzf9nTuBqFZKDh8kSNPA4tTC68UneHJs'),
   auusdMint: new PublicKey(process.env.NEXT_PUBLIC_AUUSD_MINT || '11111111111111111111111111111111'),
 }
 
